@@ -6,7 +6,7 @@
 * 
 *  Name: Wai Hing William Tse   Student ID: 149 992 216    Date: 1/29/2023
 *
-*  Cyclic Web App URL: 
+*  Cyclic Web App URL: https://dark-puce-macaw-wear.cyclic.app
 *
 *  GitHub Repository URL: https://github.com/wtse1225/web322-app
 *
