@@ -66,3 +66,58 @@ module.exports.getCategories = () => {
         }
     });
 }
+
+// Part 4: step 1, add a function to return posts that match the query category
+module.exports.getPostsByCategory = (category) => {
+    return new Promise((resolve, reject) => {
+        let catPost = posts.filter(posts => posts.category == category);  
+        if (catPost.length > 0) {
+            resolve(catPost);
+        }
+        else {
+            reject("No results returned");
+        }
+    });
+}
+
+// Part 4: step 2, add a function to return posts that is >= input "minDateStr"
+module.exports.getPostsByMinDate = (minDateStr) => {
+    return new Promise((resolve, reject) => {
+        let datePost = posts.filter(posts => new Date(posts.postDate) >= new Date(minDateStr));
+        if (datePost.length > 0) {
+            resolve(datePost);
+        }
+        else {
+            reject("No results returned");
+        }
+    });
+}
+
+// Part 4: step 3, add a function to return posts that match the query id
+module.exports.getPostsById = (id) => {
+    return new Promise((resolve, reject) => {
+        idPost = posts.filter(posts => posts.id == id);
+        if (idPost.length > 0) {
+            resolve(idPost);
+        }
+        else {
+            reject("No results returned");
+        }
+    });
+}
+
+// Part 2: step 3, add postData to posts array
+module.exports.addPost = (postData) => {
+    return new Promise((resolve, reject) => {
+        if (postData.published) {
+            postData.published = true;
+            postData.id = posts.length + 1;
+            posts.push(postData);
+            resolve(postData);
+        }
+        else {
+            postData.published = false;
+            reject("Upload failed");
+        }
+    });
+}
