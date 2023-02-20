@@ -4,7 +4,7 @@ let categories = [];
 let postPath = './data/posts.json';
 let catPath = './data/categories.json';
 
-// class example - change this part
+// A nested callbacks are used to ensure both reads are successful before returning resolve
 module.exports.initialize  = () => {
     return new Promise((resolve, reject) => {    
         fs.readFile(postPath, 'utf8', (err, data) => {
@@ -13,17 +13,16 @@ module.exports.initialize  = () => {
             }
             else {
                 posts = JSON.parse(data);
-                resolve('Load succeeded');
-            }
-        });
 
-        fs.readFile(catPath, 'utf8', (err, data) => {
-            if (err) {
-                reject("unable to read file");
-            }
-            else {
-                categories = JSON.parse(data);
-                resolve('Load succeeded');
+                fs.readFile(catPath, 'utf8', (err, data) => {
+                    if (err) {
+                        reject("unable to read file");
+                    }
+                    else {
+                        categories = JSON.parse(data);
+                        resolve('Load succeeded');
+                    }
+                });
             }
         });
     })
