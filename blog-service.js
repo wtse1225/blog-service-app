@@ -44,9 +44,23 @@ module.exports.getAllPosts = () => {
 module.exports.getPublishedPosts = () => {
     return new Promise((resolve, reject) => {
         // filter results where posts.published === true
-        let pubPost = posts.filter(posts => posts.published === true);  
+        let pubPost = posts.filter(posts => posts.published == true);  
         if (pubPost.length > 0) {
             resolve(pubPost);
+        }
+        else {
+            reject("No results returned");
+        }
+    });
+}
+
+// Assignment 4: return published posts AND by category
+module.exports.getPublishedPostsByCategory = (category) => {
+    return new Promise((resolve, reject) => {
+        // filter results where posts.published === true
+        let pubPostByCat = posts.filter(posts => posts.published == true && posts.category == category);  
+        if (pubPostByCat.length > 0) {
+            resolve(pubPostByCat);
         }
         else {
             reject("No results returned");
@@ -66,7 +80,7 @@ module.exports.getCategories = () => {
     });
 }
 
-// Part 4: step 1, add a function to return posts that match the query category
+// add a function to return posts that match the query category
 module.exports.getPostsByCategory = (category) => {
     return new Promise((resolve, reject) => {
         let catPost = posts.filter(posts => posts.category == category);  
@@ -79,7 +93,7 @@ module.exports.getPostsByCategory = (category) => {
     });
 }
 
-// Part 4: step 2, add a function to return posts that is >= input "minDateStr"
+// add a function to return posts that is >= input "minDateStr"
 module.exports.getPostsByMinDate = (minDateStr) => {
     return new Promise((resolve, reject) => {
         let datePost = posts.filter(posts => new Date(posts.postDate) >= new Date(minDateStr));
@@ -92,12 +106,12 @@ module.exports.getPostsByMinDate = (minDateStr) => {
     });
 }
 
-// Part 4: step 3, add a function to return posts that match the query id
+// add a function to return posts that match the query id
 module.exports.getPostsById = (id) => {
     return new Promise((resolve, reject) => {
         idPost = posts.filter(posts => posts.id == id);
-        if (idPost.length > 0) {
-            resolve(idPost);
+        if (idPost[0]) {
+            resolve(idPost[0]);
         }
         else {
             reject("No results returned");
@@ -105,12 +119,13 @@ module.exports.getPostsById = (id) => {
     });
 }
 
-// Part 2: step 3, add postData to posts array
+// add postData to posts array
 module.exports.addPost = (postData) => {
     return new Promise((resolve, reject) => {
         if (postData.published) {
             postData.published = true;
             postData.id = posts.length + 1;
+            postData.postDate = new Date().toLocaleDateString("fr-CA", {year:"numeric", month: "2-digit", day:"2-digit"}); // assignment 4
             posts.push(postData);
             resolve(postData);
         }
@@ -118,5 +133,6 @@ module.exports.addPost = (postData) => {
             postData.published = false;
             reject("Upload failed");
         }
+        console.log(posts);
     });
 }
