@@ -52,7 +52,13 @@ app.engine('.hbs', exphbs.engine({
     },
     safeHTML: function(context){
       return stripJs(context);
-    }     
+    },
+    formatDate: function(dateObj){ // a date format helper added in assignment 5
+      let year = dateObj.getFullYear();
+      let month = (dateObj.getMonth() + 1).toString();
+      let day = dateObj.getDate().toString();
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2,'0')}`;
+    }    
   }
 }));
 app.set('view engine', '.hbs');
@@ -64,6 +70,9 @@ function onHttpStart() {
 
 // middleware for the server to correctly return main.css file
 app.use(express.static('public'));
+
+// A regular express middleware
+app.use(express.urlencoded({extended: true}));
 
 // setup a 'route' to listen on the default url path
 app.get("/", function(req,res){  
@@ -84,31 +93,41 @@ app.get("/posts", function(req,res){
 
   if (category) {
     blogService.getPostsByCategory(category). then((data) => {
-      //res.json(data);
-      res.render("posts", {posts: data});
+      if (data.length > 0 ) {
+        res.render("posts", {posts: data});
+      } else {
+        res.render("posts", {message: "no results"});
+      }
     }).catch((err) => {
       console.log(err);
       //res.send(err);
-      res.render("posts", {message: "no results"});
+      res.render("posts", {message: "no results"} + err);
     });
   }
   else if (minDateStr) {
     blogService.getPostsByMinDate(minDateStr). then((data) => {
       //res.json(data);
-      res.render("posts", {posts: data});
+      if (data.length > 0) {
+        res.render("posts", {posts: data});
+      }   else {
+        res.render("posts", {message: "no results"});
+      }
     }).catch((err) => {
       console.log(err);
       //res.send(err);
-      res.render("posts", {message: "no results"});
+      res.render("posts", {message: "no results"} + err);
     });
   }
   else (blogService.getAllPosts().then((data) => {
     //res.json(data)
-    res.render("posts", {posts: data}); // render the posts.hbs with the passed in posts object that holds all the data 
+    if (data.length > 0) {
+      res.render("posts", {posts: data}); // render the posts.hbs with the passed in posts object that holds all the data 
+    } else {
+      res.render("posts", {message: "no results"});
+    }
   }).catch((err) => {
     console.log(err);
-    //res.send(err);
-    res.render("posts", {message: "no results"});
+    res.render("posts", {message: "no results"} + err);
   }))
 });
 
@@ -127,17 +146,7 @@ app.get("/post/:value", (req, res) => {
 });
 
 // Assignment 4: setup another route to listen on /Blog 
-//app.get("/blog", function(req,res){
-//  //res.sendFile(path.join(__dirname, "/data/posts.json"));
-//  blogService.getPublishedPosts().then((data) => {
-//    res.json(data)
-//  }).catch((err) => {
-//    console.log(err);
-//    res.send(err);
-//  })
-//});
 app.get('/blog', async (req, res) => {
-
   // Declare an object to store properties for the view
   let viewData = {};
 
@@ -186,7 +195,6 @@ app.get('/blog', async (req, res) => {
 
 // Assignment 4: Adding the blog/:id route
 app.get('/blog/:id', async (req, res) => {
-
   // Declare an object to store properties for the view
   let viewData = {};
 
@@ -241,18 +249,26 @@ app.get("/categories", function(req,res){
   //res.sendFile(path.join(__dirname, "/data/categories.json"));
   blogService.getCategories().then((data) => {
     //res.json(data)
-    res.render("categories", {categories: data});
+    if (data.length > 0) {
+      res.render("categories", {categories: data});
+    } else {
+      res.render("categories", {message: "no results"});
+    }
   }).catch((err) => {
     console.log(err);
-    //res.send(err);
-    res.render("categories", {message: "no results"});
+    res.render("categories", {message: "no results"} + err);
   })
 });
 
 // adding a route to support the new view /posts/add
 app.get("/posts/add", (req, res) => {
   //res.sendFile(path.join(__dirname, "/views/addPost.html"));
-  res.render('addPost');
+  //res.render('addPost');
+  blogService.getCategories().then((data) => {
+    res.render("addPost", {categories: data});
+  }).catch((err) => {
+    res.render("addPost", {categories: []});
+  })
 });
 
 // adding the Post route
@@ -297,6 +313,42 @@ app.post("/posts/add", upload.single("featureImage"), (req, res) => {
   } 
 
 });
+
+// adding a route to support the new view /categories/add
+app.get("/categories/add", (req, res) => {
+  //res.sendFile(path.join(__dirname, "/views/addPost.html"));
+  res.render('addCategory');
+});
+
+// adding the categories/add route
+app.post("/categories/add", (req, res) => {     
+    blogService.addCategory(req.body).then(() => {
+      res.redirect("/categories");
+    }).catch((err) => {
+      res.send(err);
+    });
+  } 
+);
+
+// adding the categories/delete/:id route
+app.get("/categories/delete/:id", (req, res) => {     
+  blogService.deleteCategoryById(req.params.id).then(() => {
+    res.redirect("/categories");
+    }).catch((err) => {
+    res.status(500).render("500", {message: "Unable to Remove Category / Category not found"});
+    });
+  } 
+);
+
+// adding the posts/delete/:id route
+app.get("/post/delete/:id", (req, res) => {     
+  blogService.deletePostById(req.params.id).then(() => {
+    res.redirect("/posts");
+    }).catch((err) => {
+    res.status(500).render("500", {message: "Unable to Remove Post / Post not found"});
+    });
+  } 
+);
 
 // setting the cloudinary config
 cloudinary.config({
