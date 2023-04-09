@@ -1,5 +1,5 @@
 /*********************************************************************************
-*  WEB322 – Assignment 05
+*  WEB322 – Assignment 06
 *  I declare that this assignment is my own work in accordance with Seneca Academic Policy.  
 *  No part of this assignment has been copied manually or electronically from any other source
 *  (including web sites) or distributed to other students.
@@ -20,6 +20,8 @@ const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const exphbs = require('express-handlebars'); // assignment 4
 const stripJs = require('strip-js'); // assignment 4
+const authData = require('./auth-service'); // assignment 6
+const clientSessions = require('client-sessions'); // assignment 6
 const path = require("path");
 const app = express();
 const upload = multer(); // assignment 3
@@ -31,6 +33,29 @@ app.use(function(req,res,next){
   app.locals.viewingCategory = req.query.category;
   next();
 });
+
+// Setup client-sessions
+app.use(clientSessions({
+  cookieName: "session", // this is the object name that will be added to 'req'
+  secret: "assignment6_web322", // this should be a long un-guessable string.
+  duration: 2 * 60 * 1000, // duration of the session in milliseconds (2 minutes)
+  activeDuration: 1000 * 60 // the session will be extended by this many ms each request (1 minute)
+}));
+
+// A middleware function for the templates to have access to a session object
+app.use(function(req, res, next) {
+  res.locals.session = req.session;
+  next();
+});
+
+// The heloper middleware function to check if a user is logged in
+function ensureLogin(req, res, next) {
+  if (!req.session.user) {
+    res.redirect("/login");
+  } else {
+    next();
+  }
+};
 
 // assignment 4: setup the handlebars engine with helpers
 app.engine('.hbs', exphbs.engine({  
@@ -66,7 +91,7 @@ app.set('view engine', '.hbs');
 // call this function after the http server starts listening for requests
 function onHttpStart() {
   console.log("Express http server listening on: " + HTTP_PORT);
-}
+};
 
 // middleware for the server to correctly return main.css file
 app.use(express.static('public'));
@@ -86,7 +111,7 @@ app.get("/about", function(req,res){
 });
 
 // setup another route to listen on /posts
-app.get("/posts", function(req,res){
+app.get("/posts", ensureLogin,function(req,res){
   //res.sendFile(path.join(__dirname, "/data/posts.json"));
   let category = req.query.category; 
   let minDateStr = req.query.minDate;
@@ -132,7 +157,7 @@ app.get("/posts", function(req,res){
 });
 
 // setup a /post/value route
-app.get("/post/:value", (req, res) => {
+app.get("/post/:value", ensureLogin, (req, res) => {
   let id = req.params.value;
 
   if (id) {
@@ -245,7 +270,7 @@ app.get('/blog/:id', async (req, res) => {
 });
 
 // setup another route to listen on /categories
-app.get("/categories", function(req,res){
+app.get("/categories", ensureLogin, function(req,res){
   //res.sendFile(path.join(__dirname, "/data/categories.json"));
   blogService.getCategories().then((data) => {
     //res.json(data)
@@ -261,7 +286,7 @@ app.get("/categories", function(req,res){
 });
 
 // adding a route to support the new view /posts/add
-app.get("/posts/add", (req, res) => {
+app.get("/posts/add", ensureLogin, (req, res) => {
   //res.sendFile(path.join(__dirname, "/views/addPost.html"));
   //res.render('addPost');
   blogService.getCategories().then((data) => {
@@ -272,7 +297,7 @@ app.get("/posts/add", (req, res) => {
 });
 
 // adding the Post route
-app.post("/posts/add", upload.single("featureImage"), (req, res) => {
+app.post("/posts/add", ensureLogin, upload.single("featureImage"), (req, res) => {
   if(req.file){
     let streamUpload = (req) => {
         return new Promise((resolve, reject) => {
@@ -311,17 +336,16 @@ app.post("/posts/add", upload.single("featureImage"), (req, res) => {
       res.send(err);
     });
   } 
-
 });
 
 // adding a route to support the new view /categories/add
-app.get("/categories/add", (req, res) => {
+app.get("/categories/add", ensureLogin, (req, res) => {
   //res.sendFile(path.join(__dirname, "/views/addPost.html"));
   res.render('addCategory');
 });
 
 // adding the categories/add route
-app.post("/categories/add", (req, res) => {     
+app.post("/categories/add", ensureLogin, (req, res) => {     
     blogService.addCategory(req.body).then(() => {
       res.redirect("/categories");
     }).catch((err) => {
@@ -331,7 +355,7 @@ app.post("/categories/add", (req, res) => {
 );
 
 // adding the categories/delete/:id route
-app.get("/categories/delete/:id", (req, res) => {     
+app.get("/categories/delete/:id", ensureLogin, (req, res) => {     
   blogService.deleteCategoryById(req.params.id).then(() => {
     res.redirect("/categories");
     }).catch((err) => {
@@ -341,7 +365,7 @@ app.get("/categories/delete/:id", (req, res) => {
 );
 
 // adding the posts/delete/:id route
-app.get("/post/delete/:id", (req, res) => {     
+app.get("/post/delete/:id", ensureLogin, (req, res) => {     
   blogService.deletePostById(req.params.id).then(() => {
     res.redirect("/posts");
     }).catch((err) => {
@@ -349,6 +373,70 @@ app.get("/post/delete/:id", (req, res) => {
     });
   } 
 );
+
+// Adding the login route
+app.get("/login", (req, res) => {
+  res.render('login', {
+    layout: 'main'
+  })
+});
+
+// Route for POST login
+app.post("/login", (req, res) => {
+  req.body.userAgent = req.get('User-Agent');
+  authData.checkUser(req.body).then((user) => {
+    req.session.user = {
+      userName: user.userName,
+      email: user.email,
+      loginHistory: user.loginHistory
+    }
+    res.redirect("/posts");
+  }).catch((err)=> {
+    console.log(err)
+    res.render('login', {
+      errorMessage: err,
+      userName: req.body.userName,
+      layout: 'main'
+    })
+  })
+})
+
+// The function to reset the session (logout)
+app.get("/logout", ensureLogin, (req, res) => {
+  req.session.reset();
+  res.redirect("/login");
+});
+
+// The function to render the login history
+app.get("/loginHistory", ensureLogin, (req,res) => {
+  res.render('loginHistory', {
+    layout: 'main'
+  })
+})
+
+// Adding the register route
+app.get("/register", (req, res) => {
+  res.render('register', {
+    layout: 'main'
+  })
+});
+
+// Adding the POST register route
+app.post("/register", (req, res) => {
+  authData.registerUser(req.body).then(() => {
+    res.render('register', {
+      successMessage: "User created",
+      layout: 'main'
+    })
+  }).catch((err)=> {
+    console.log(err)
+    res.render('register', {
+      errorMessage: err,
+      userName: req.body.userName,
+      layout: 'main'
+    })
+  })
+})
 
 // setting the cloudinary config
 cloudinary.config({
@@ -365,6 +453,9 @@ app.use((req,res) => {
 });
 
 // init first, then setup http server to listen on HTTP_PORT
-blogService.initialize().then(() => {  
-  app.listen(HTTP_PORT, onHttpStart);
-})
+blogService.initialize().then(authData.initialize)
+.then(function(){
+    app.listen(HTTP_PORT, onHttpStart);
+}).catch(function(err){
+    console.log("unable to start server: " + err);
+});
